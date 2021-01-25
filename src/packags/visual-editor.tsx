@@ -9,6 +9,10 @@ const VisualEditor = defineComponent({
 			// 定义type属性的类型
 			type: Object as PropType<VisualEditorModelValue>,
 			required: true
+		},
+		config: {
+			type: Object as PropType<>,
+			required: true,
 		}
 	},
 	emits: {

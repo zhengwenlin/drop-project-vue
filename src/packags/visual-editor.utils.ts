@@ -28,12 +28,22 @@ export function createVisualEditorConfig() {
     // 组件名称的映射表
     const componentMap: Record<string, VisualEditorComponent> = {}
     return {
-        registry: () => {
-
+        // 提供注册的方法
+        registry: (name: string, component: VisualEditorComponent) => {
+            let com = { ...component, name }
+            componentList.push(com)
+            componentMap[name] = com;
         }
     }
 }
 
 export type VisualEditorConfig = ReturnType<typeof createVisualEditorConfig>
+
+
+let config = createVisualEditorConfig()
+config.registry('input', {
+    preview: () => '按钮',
+    render: () => '渲染按钮'
+})
 
 
