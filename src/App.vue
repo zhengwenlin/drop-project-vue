@@ -1,15 +1,17 @@
 <template>
-  <visual-editor v-model="jsonData" />
+  <visual-editor v-model="jsonData" :config="visualConfig" />
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
 import VisualEditor from './packags/visual-editor';
+import {visualConfig} from './visual.config'
 export default defineComponent({
   name: 'App',
   components: {VisualEditor},
   data(){
     return {
+      visualConfig,
       jsonData: {
         container: {
           width: 800,

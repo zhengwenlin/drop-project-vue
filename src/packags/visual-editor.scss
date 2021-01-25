@@ -35,6 +35,48 @@ $primary: #409eff; // 主色
         top: 0;
         bottom: 0;
         background-color: white;
+        z-index: 9;
+        .visual-editor-menu-item{
+          position: relative;
+          width: calc(100% - 20px);
+          margin-left: 10px;
+          border: 2px solid $ibl;
+          margin-top: 20px;
+          min-height: 100px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 10px 10px;
+          box-sizing: border-box;
+          &:hover{
+            border-color: $primary;
+            cursor: move;
+          }
+          &:after{
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 3;
+          }
+          .visual-editor-menu-item-label{
+            position: absolute;
+            top:0;
+            left: -2px;
+            background-color: $primary;
+            color: white;
+            padding: 4px 8px;
+            font-size: 13px;
+            text-align: center;
+            z-index: 1;
+          }
+          .visual-editor-menu-item-content{
+             text-align: center;
+
+          }
+        }
     }
 
     & > .visual-editor-head{
