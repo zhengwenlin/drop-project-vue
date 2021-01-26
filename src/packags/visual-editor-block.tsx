@@ -26,6 +26,14 @@ export const VisualEditorBlock = defineComponent({
            }
         })
 
+        // 选中block的样式
+        const bloackClasses = computed(() => [
+            'visual-editor-block',
+            {
+                'visual-editor-block-focus': props.block.focus
+            }
+        ])
+
         const blockStyle = computed(() => ({
             top: `${props.block?.top}px`,
             left: `${props.block?.left}px`
@@ -34,7 +42,7 @@ export const VisualEditorBlock = defineComponent({
             let component = props.config.componentMap[props.block.componentKey]
             let render = component.render;
             return (
-                <div class="visual-editor-block-item" style={blockStyle.value} ref={el}>
+                <div class={bloackClasses.value} style={blockStyle.value} ref={el}>
                     {render()}
                 </div>
             )

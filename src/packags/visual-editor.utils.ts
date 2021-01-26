@@ -3,7 +3,8 @@ export interface VisualEditorBlockData {
   componentKey: string,
   top: number,
   left: number,
-  adjustPosition: boolean // 是否需要自动调整位置居中
+  adjustPosition: boolean, // 是否需要自动调整位置居中
+  focus: boolean, // block选中
 }
 
 export interface VisualEditorModelValue {
@@ -21,6 +22,24 @@ export interface VisualEditorComponent {
   label: string,
   preview: () => JSX.Element,
   render: () => JSX.Element
+}
+
+export function createNewBlock({
+  component,
+  left,
+  top
+}: {
+  component: VisualEditorComponent,
+  top: number,
+  left: number
+}): VisualEditorBlockData {
+  return {
+    left,
+    top,
+    componentKey: component!.key,
+    adjustPosition: true, // 第一次拖过去是需要调整位置的
+    focus: true
+  }
 }
 
 /**
