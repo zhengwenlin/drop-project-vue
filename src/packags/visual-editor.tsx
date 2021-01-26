@@ -94,18 +94,33 @@ const VisualEditor = defineComponent({
       // 导出的只想让外部访问到的属性，自己决定
       return blockHanders;
     })();
-    
+
     // 定义一些方法
     const methods = {
       clearFocus: (block?: VisualEditorBlockData) => {
-         let blocks = modelData.value.blocks || [];
-         if(blocks.length === 0) return;
-         if(block){
-           blocks = blocks.filter(b => b !== block)
-         }
-         blocks.forEach(b => b.focus = false)
+        let blocks = modelData.value.blocks || [];
+        if (blocks.length === 0) return;
+        if (block) {
+          blocks = blocks.filter(b => b !== block)
+        }
+        blocks.forEach(b => b.focus = false)
       }
     }
+
+    // 计算选中和未选中的block的数据
+    const focusData = computed(() => {
+      let focus = [] as VisualEditorBlockData[];
+      let unFocus = [] as VisualEditorBlockData[];
+      let blocks = modelData.value.blocks;
+
+      blocks.forEach(b => {
+        (b.focus ? focus : unFocus).push(b)
+      })
+      return {
+        focus,         // 选中的数据
+        unFocus        // 未选中的数据
+      }
+    })
 
     // block的激活的handlers
     // 1. 点击block，变成激活状态
@@ -131,14 +146,24 @@ const VisualEditor = defineComponent({
             e.stopPropagation()
             // 判断用户是否按住了shift键
             // e.shiftKey 事件属性可返回一个布尔值，指示当事件发生时，"SHIFT" 键是否被按下并保持住。
-            if(e.shiftKey){ // 多选
-               // 正常选中即可
-               block.focus = !block.focus;
-            }else{
-              // 没有按住的话，要选中当前的，其他的block都取消选中
-              block.focus = !block.focus;
-              methods.clearFocus(block)
+            if (e.shiftKey) { // 多选
+              // 如果是只有一个选中或者没有选中的
+              if(focusData.value.focus.length <= 1){
+                block.focus = true; // 设置选中
+              }else{
+                block.focus = !block.focus;
+              }
+            } else {
+              if(!block.focus){
+                // 如果当前的block是没有选中的状态，点击的时候才会去清空别的block的选中状态
+                // 如果当前的block是选中状态，点击的时候不会影响别的block的选中状态
+                block.focus = true;
+                methods.clearFocus(block)
+              }
             }
+
+            // block拖拽事件
+            blockDraggier.mousedown(e)
           }
         }
       }
@@ -148,21 +173,49 @@ const VisualEditor = defineComponent({
     // block的拖拽handlers
     // block的拖拽用的是mouse事件，没有使用drag事件，原因是mouse支持拖拽的时候用滚轮滚动滚动条
     const blockDraggier = (() => {
-      // 用于保存拖拽的一些信息
+      // 用于保存初始的一些信息
       let dragState = {
-        
+        startX: 0,
+        startY: 0,
+        // 要拖拽的元素可能有多个，（选中的blocks都要被拖拽）
+        startPos: [] as { left: number, top: number }[]
       }
-
+      // clientX,clientY 点击位置距离当前body可视区域的x、y坐标
+      // 鼠标按下时触发的事件
       const mousedown = (e: MouseEvent) => {
-
+        console.log(e, 'e');
+        
+        dragState = {
+          startX: e.clientX,
+          startY: e.clientY,
+          // 选中的blocks的起始left和top值
+          startPos: focusData.value.focus.map(({ left, top }) => ({ left, top }))
+        }
+        // 添加mousemove事件mouseup事件
+        // 注意： 事件要绑定给document，因为元素是在页面中随便移动，相对于document
+        document.addEventListener('mousemove', mousemove)
+        document.addEventListener('mouseup', mouseup)
       }
+      // 鼠标移动时触发的事件
       const mousemove = (e: MouseEvent) => {
+        // 鼠标移动的时候，计算位置
+        let durX = e.clientX - dragState.startX;
+        let durY = e.clientY - dragState.startY;
+        focusData.value.focus.forEach((block, index) => {
+           block.top = dragState.startPos[index].top + durY;
+           block.left = dragState.startPos[index].left + durX;
+        })
 
       }
+      // 鼠标抬起时触发的事件
       const mouseup = (e: MouseEvent) => {
-
+        // 移除相关事件
+        document.removeEventListener('mousemove', mousemove)
+        document.removeEventListener('mouseup', mouseup)
       }
-      return mousedown;
+      return {
+        mousedown
+      };
     })();
 
     return () => (
@@ -206,7 +259,7 @@ const VisualEditor = defineComponent({
                     block={block}
                     key={index}
                     {...{
-                      onMousedown: (e: MouseEvent) => focusHandlers.block.onMousedown(e, block)
+                      onMousedown: (e: MouseEvent) => focusHandlers.block.onMousedown(e, block),
                     }}
                   />
                 ))
