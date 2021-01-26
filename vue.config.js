@@ -3,6 +3,7 @@ module.exports = {
       overlay: {
         warnings: false,
         errors: false
-      }
+      },
+      port: 4000
     }
   }

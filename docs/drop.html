@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div style="height: 300px; border: 3px solid red;width: 400px;padding: 30px;box-sizing: border-box;">
+        <div 
+        id="item" 
+        draggable="true" 
+        style="background-color: aquamarine;height: 80px; margin-top: 10px;cursor: move;"></div>
+    </div>
+
+    <div id="container" style="height: 300px; border: 3px solid green;width: 400px;margin-top:50px;">
+
+    </div>
+    <script>
+        let item = document.getElementById('item')
+        let container = document.getElementById('container')
+
+        item.ondragend = function (e) {
+
+        }
+        const menuDragger = (() => {
+            const containerHanders = {
+                // 拖拽元素到目标容器上触发
+                dragenter: (e) => {
+                    e.dataTransfer.dropEffect = 'move'
+                    console.log('dragenter');
+                },
+                // 在容器中移动触发
+                dragover: (e) => {
+                    console.log('dragover')
+                    e.preventDefault()
+                },
+                // 离开容器触发
+                dragleave: (e) => {
+                    console.log('drapleave');
+                },
+                // 松开鼠标触发
+                drop: (e) => {
+                    console.log('drop');
+                }
+            }
+            return {
+                // 要拖拽的元素的事件
+                item: {
+                    dragstart: (e) => {
+                        // 当开始拖动元素的时候，监听目标容器的一系列事件
+                        window.addEventListener('dragenter', containerHanders.dragenter)
+                        window.addEventListener('dragover', containerHanders.dragover)
+                        window.addEventListener('dragleave', containerHanders.dragleave)
+                        window.addEventListener('drop', containerHanders.drop)
+                    },
+                    drag: (e) => {
+                        console.log('drag');
+                    },
+                    dragend: (e) => {
+                        // 拖拽结束后，移除事件
+                        window.removeEventListener('drapenter', containerHanders.dragenter)
+                        window.removeEventListener('dragover', containerHanders.dragover)
+                        window.removeEventListener('drapleave', containerHanders.drapleave)
+                        window.removeEventListener('drop', containerHanders.drop)
+                    }
+                },
+                // 拖拽到的容器的事件
+                container: {
+
+                },
+            }
+        })();
+        item.ondragstart = menuDragger.item.dragstart
+    </script>
+</body>
+
+</html>
