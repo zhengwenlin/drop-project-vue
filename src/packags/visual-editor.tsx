@@ -3,6 +3,7 @@ import './visual-editor.scss'
 import { VisualEditorModelValue, VisualEditorConfig, VisualEditorComponent, createNewBlock, VisualEditorBlockData } from './visual-editor.utils'
 import { useModel } from './utils/useModel'
 import { VisualEditorBlock } from './visual-editor-block'
+import { useVisualCommander } from "./utils/visual.command"
 
 const VisualEditor = defineComponent({
   props: {
@@ -22,12 +23,12 @@ const VisualEditor = defineComponent({
   components: { VisualEditorBlock },
   setup(props, ctx) {
 
-    const modelData = useModel(() => props.modelValue, val => ctx.emit('update:modelValue', val))
+    const dataModel = useModel(() => props.modelValue, val => ctx.emit('update:modelValue', val))
 
     const containerStyle = computed(() => {
       return {
-        width: `${modelData.value.container.width}px`,
-        height: `${modelData.value.container.height}px`,
+        width: `${dataModel.value.container.width}px`,
+        height: `${dataModel.value.container.height}px`,
       }
     })
     // 写成一个自执行函数，可以自己决定外部使用什么方法
@@ -78,15 +79,15 @@ const VisualEditor = defineComponent({
         // 鼠标在容器中放下时触发
         drop: (e: DragEvent) => {
           // 添加一条数据
-          let blocks = modelData.value.blocks;
+          let blocks = dataModel.value.blocks;
           blocks.push(createNewBlock({
             component: current!,
             top: e.offsetY,
             left: e.offsetX,
           }))
-          // 这个modelData随便改，内部监听好了
-          modelData.value = {
-            ...modelData.value,
+          // 这个dataModel随便改，内部监听好了
+          dataModel.value = {
+            ...dataModel.value,
             blocks
           }
         }
@@ -98,12 +99,19 @@ const VisualEditor = defineComponent({
     // 定义一些方法
     const methods = {
       clearFocus: (block?: VisualEditorBlockData) => {
-        let blocks = modelData.value.blocks || [];
+        let blocks = dataModel.value.blocks || [];
         if (blocks.length === 0) return;
         if (block) {
           blocks = blocks.filter(b => b !== block)
         }
         blocks.forEach(b => b.focus = false)
+      },
+      // 更新bloack数据的方法
+      updateBlocks: (blocks?: VisualEditorBlockData[]) => {
+         dataModel.value = {
+           ...dataModel.value,
+           blocks: blocks || []
+         }
       }
     }
 
@@ -111,7 +119,7 @@ const VisualEditor = defineComponent({
     const focusData = computed(() => {
       let focus = [] as VisualEditorBlockData[];
       let unFocus = [] as VisualEditorBlockData[];
-      let blocks = modelData.value.blocks;
+      let blocks = dataModel.value.blocks;
 
       blocks.forEach(b => {
         (b.focus ? focus : unFocus).push(b)
@@ -217,6 +225,34 @@ const VisualEditor = defineComponent({
         mousedown
       };
     })();
+    
+    // 获取commander对象
+    const commander = useVisualCommander({
+      focusData, 
+      dataModel, 
+      updateBlocks:methods.updateBlocks
+    })
+    // 先把按钮渲染出来
+    const buttons = [
+      {
+        label: '撤销',
+        icon: 'icon-back',
+        handler: commander.undo,
+        tip: 'ctrl+z'
+      },
+      {
+        label: '重做',
+        icon: 'icon-forward',
+        handler: commander.redo,
+        tip: 'ctrl+y, ctrl+shift+z'
+      },
+      {
+        label: '删除',
+        icon: 'icon-back',
+        handler: commander.delete,
+        tip: 'ctrl+d, backspace, delete'
+      }
+    ]
 
     return () => (
       <div class="visual-editor">
@@ -236,8 +272,20 @@ const VisualEditor = defineComponent({
           ))}
         </div>
         <div class="visual-editor-head">
-          visual-editor-head
-                 </div>
+           {
+             buttons.map((btn, index) => {
+               let content = (
+                <div class="visual-editor-head-button" onClick={() => btn.handler()}>
+                    <i class={`iconfont ${btn.icon}`}></i>
+                    <span>{btn.label}</span>
+                </div>
+               )
+               return !btn.tip ? content:  <el-tooltip effect="dark" content={btn.tip} placement="bottom">
+                 {content}
+               </el-tooltip>; 
+             })
+           }
+        </div>
         <div class="visual-editor-operator">
           visual-editor-operator
                 </div>
@@ -250,8 +298,8 @@ const VisualEditor = defineComponent({
               ...focusHandlers.container
               }
             >
-              {!!modelData.value && !!modelData.value.blocks && (
-                modelData.value.blocks.map((block, index) => (
+              {!!dataModel.value && !!dataModel.value.blocks && (
+                dataModel.value.blocks.map((block, index) => (
                   // vue3给组件添加事件，会被添加到渲染的跟元素上
                   // onMousedown={(e: MouseEvent) => focusHandlers.block.onMousedown(e, block)}
                   <VisualEditorBlock
