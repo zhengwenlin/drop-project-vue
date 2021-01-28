@@ -1,21 +1,24 @@
 interface Defer {
-    (): void,
-    count: number
+  (): {
+    resolve: () => void,
+    rejecet: () => void,
+    promise: Promise<void>
+  },
+
+  <T>(): {
+    resolve: (val: T) => void,
+    reeject: () => void,
+    promise: Promise<T>
+  }
 }
 
-let aaa: Defer = () => {
 
-};
-aaa.count = 1;
+export const defer: Defer = () => {
+  const dfd = {} as any;
+  dfd.promise = new Promise((resolve, reject) => {
+    dfd.resolve = resolve;
+    dfd.reeject = reject;
+  })
 
-
-
-interface Getcount {
-    (): void,
-    count: number
-}
-const getCount: Getcount = () => {
-    getCount.count++;
-}
-getCount.count = 1
-getCount()
+  return dfd;
+} 
