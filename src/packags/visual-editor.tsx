@@ -275,7 +275,8 @@ const VisualEditor = defineComponent({
         icon: 'icon-back',
         handler: commander.delete,
         tip: 'ctrl+d, backspace, delete'
-      }
+      },
+      {label: '清空', icon: 'icon-reset', handler: () => commander.clear(),},
     ]
 
     return () => (

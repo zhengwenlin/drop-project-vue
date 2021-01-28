@@ -104,12 +104,34 @@ export const useVisualCommander = ({
         }
     })
 
+    // 清空命令
+    commander.registry({
+        name: 'clear',
+        followQueue: true,
+        execute: () => {
+            let data = {
+                before: [] as VisualEditorBlockData[],
+                after: [] as VisualEditorBlockData[]
+            }
+            data.before = deepcopy(dataModel.value.blocks)
+            return {
+                undo: () => {
+                    updateBlocks(deepcopy(data.before))
+                },
+                redo: () => {
+                    updateBlocks(deepcopy([]))
+                }
+            }
+        }
+    })
+
     // 1.初始化事件 2.调用每个command中的init方法，订阅事件
     commander.init()
     // 向外部导出的方法
     return {
         undo: () => commander.state.commands.undo(),
         redo: () => commander.state.commands.redo(),
-        delete: () => commander.state.commands.delete()
+        delete: () => commander.state.commands.delete(),
+        clear: () => commander.state.commands.clear()
     }
 }
