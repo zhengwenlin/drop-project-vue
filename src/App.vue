@@ -19,7 +19,8 @@ export default defineComponent({
         },
         blocks: [
           {top: 100, left:100,componentKey:'button'},
-          {top: 200, left: 200,componentKey:'input'}
+          {top: 200, left: 200,componentKey:'input'},
+          {top: 50, left: 200,componentKey:'text'},
         ]
       }
     }
@@ -33,3 +34,4 @@ html,body{
   padding: 0;
 }
 </style>
+

@@ -4,6 +4,7 @@ import { VisualEditorModelValue, VisualEditorConfig, VisualEditorComponent, crea
 import { useModel } from './utils/useModel'
 import { VisualEditorBlock } from './visual-editor-block'
 import { useVisualCommander } from "./utils/visual.command"
+import { createEvent } from "./plugins/event"
 
 const VisualEditor = defineComponent({
   props: {
@@ -31,6 +32,12 @@ const VisualEditor = defineComponent({
         height: `${dataModel.value.container.height}px`,
       }
     })
+
+    // 创建拖拽开始和结束的事件对象
+    let dragstart =  createEvent()
+    let dragend =  createEvent()
+
+
     // 写成一个自执行函数，可以自己决定外部使用什么方法
     const menuDraggier = (() => {
       // 当前的组件
@@ -44,7 +51,10 @@ const VisualEditor = defineComponent({
           window.addEventListener('dragenter', containerHanders.dragenter)
           window.addEventListener('dragover', containerHanders.dragover)
           window.addEventListener('dragleave', containerHanders.dragleave)
-          window.addEventListener('drop', containerHanders.drop)
+          window.addEventListener('drop', containerHanders.drop);
+
+          // 发布订阅，触发dragstart事件
+          dragstart.emit()
         },
         drag: (e: DragEvent) => {
 
@@ -57,6 +67,9 @@ const VisualEditor = defineComponent({
           window.removeEventListener('dragover', containerHanders.dragover)
           window.removeEventListener('dragleave', containerHanders.dragleave)
           window.removeEventListener('drop', containerHanders.drop)
+
+          // 触发dragend事件
+          dragend.emit()
         }
       }
       // 目标容器的事件hander
@@ -141,7 +154,6 @@ const VisualEditor = defineComponent({
         container: {
           onMousedown: (e: MouseEvent) => {
             e.preventDefault();
-            e.stopPropagation()
             methods.clearFocus()
           }
         },
@@ -186,18 +198,18 @@ const VisualEditor = defineComponent({
         startX: 0,
         startY: 0,
         // 要拖拽的元素可能有多个，（选中的blocks都要被拖拽）
-        startPos: [] as { left: number, top: number }[]
+        startPos: [] as { left: number, top: number }[],
+        dragging: false,
       }
       // clientX,clientY 点击位置距离当前body可视区域的x、y坐标
       // 鼠标按下时触发的事件
       const mousedown = (e: MouseEvent) => {
-        console.log(e, 'e');
-        
         dragState = {
           startX: e.clientX,
           startY: e.clientY,
           // 选中的blocks的起始left和top值
-          startPos: focusData.value.focus.map(({ left, top }) => ({ left, top }))
+          startPos: focusData.value.focus.map(({ left, top }) => ({ left, top })),
+          dragging: false,
         }
         // 添加mousemove事件mouseup事件
         // 注意： 事件要绑定给document，因为元素是在页面中随便移动，相对于document
@@ -213,13 +225,23 @@ const VisualEditor = defineComponent({
            block.top = dragState.startPos[index].top + durY;
            block.left = dragState.startPos[index].left + durX;
         })
-
+        //触发通知
+        if(dragState.dragging === false){
+          dragState.dragging = true;
+          dragstart.emit()
+        }
       }
       // 鼠标抬起时触发的事件
       const mouseup = (e: MouseEvent) => {
         // 移除相关事件
         document.removeEventListener('mousemove', mousemove)
         document.removeEventListener('mouseup', mouseup)
+
+        // 触发通知
+        if(dragState.dragging === true){
+          dragState.dragging = false;
+          dragend.emit()
+        }
       }
       return {
         mousedown
@@ -230,7 +252,9 @@ const VisualEditor = defineComponent({
     const commander = useVisualCommander({
       focusData, 
       dataModel, 
-      updateBlocks:methods.updateBlocks
+      updateBlocks:methods.updateBlocks,
+      dragstart, // 将两个enents对象传递到useVisualCommander中
+      dragend
     })
     // 先把按钮渲染出来
     const buttons = [
