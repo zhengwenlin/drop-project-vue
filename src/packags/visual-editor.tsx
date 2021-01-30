@@ -5,6 +5,9 @@ import { useModel } from './utils/useModel'
 import { VisualEditorBlock } from './visual-editor-block'
 import { useVisualCommander } from "./utils/visual.command"
 import { createEvent } from "./plugins/event"
+import { ElMessageBox} from 'element-plus'
+
+import { $$dialog } from "./utils/dialog-service"
 
 const VisualEditor = defineComponent({
   props: {
@@ -34,8 +37,8 @@ const VisualEditor = defineComponent({
     })
 
     // 创建拖拽开始和结束的事件对象
-    let dragstart =  createEvent()
-    let dragend =  createEvent()
+    let dragstart = createEvent()
+    let dragend = createEvent()
 
 
     // 写成一个自执行函数，可以自己决定外部使用什么方法
@@ -121,10 +124,10 @@ const VisualEditor = defineComponent({
       },
       // 更新bloack数据的方法
       updateBlocks: (blocks?: VisualEditorBlockData[]) => {
-         dataModel.value = {
-           ...dataModel.value,
-           blocks: blocks || []
-         }
+        dataModel.value = {
+          ...dataModel.value,
+          blocks: blocks || []
+        }
       }
     }
 
@@ -168,13 +171,13 @@ const VisualEditor = defineComponent({
             // e.shiftKey 事件属性可返回一个布尔值，指示当事件发生时，"SHIFT" 键是否被按下并保持住。
             if (e.shiftKey) { // 多选
               // 如果是只有一个选中或者没有选中的
-              if(focusData.value.focus.length <= 1){
+              if (focusData.value.focus.length <= 1) {
                 block.focus = true; // 设置选中
-              }else{
+              } else {
                 block.focus = !block.focus;
               }
             } else {
-              if(!block.focus){
+              if (!block.focus) {
                 // 如果当前的block是没有选中的状态，点击的时候才会去清空别的block的选中状态
                 // 如果当前的block是选中状态，点击的时候不会影响别的block的选中状态
                 block.focus = true;
@@ -221,12 +224,24 @@ const VisualEditor = defineComponent({
         // 鼠标移动的时候，计算位置
         let durX = e.clientX - dragState.startX;
         let durY = e.clientY - dragState.startY;
-        focusData.value.focus.forEach((block, index) => {
-           block.top = dragState.startPos[index].top + durY;
-           block.left = dragState.startPos[index].left + durX;
+        
+        // 如果按住了shift键，会只能上下或者左右移动，有一个移动的矫正
+        if(e.shiftKey){
+          // 如果x轴移动的绝对距离比y轴大，说明大体上是沿着x轴移动的，这时，y轴就不让移动
+          if(Math.abs(durX) > Math.abs(durY)){
+             durY = 0
+          }else{
+            durX = 0;
+          }
+        }
+
+        let focus = focusData.value.focus;
+        focus.forEach((block, index) => {
+          block.top = dragState.startPos[index].top + durY;
+          block.left = dragState.startPos[index].left + durX;
         })
         //触发通知
-        if(dragState.dragging === false){
+        if (dragState.dragging === false) {
           dragState.dragging = true;
           dragstart.emit()
         }
@@ -238,7 +253,7 @@ const VisualEditor = defineComponent({
         document.removeEventListener('mouseup', mouseup)
 
         // 触发通知
-        if(dragState.dragging === true){
+        if (dragState.dragging === true) {
           dragState.dragging = false;
           dragend.emit()
         }
@@ -247,12 +262,12 @@ const VisualEditor = defineComponent({
         mousedown
       };
     })();
-    
+
     // 获取commander对象
     const commander = useVisualCommander({
-      focusData, 
-      dataModel, 
-      updateBlocks:methods.updateBlocks,
+      focusData,
+      dataModel,
+      updateBlocks: methods.updateBlocks,
       dragstart, // 将两个enents对象传递到useVisualCommander中
       dragend
     })
@@ -271,12 +286,33 @@ const VisualEditor = defineComponent({
         tip: 'ctrl+y, ctrl+shift+z'
       },
       {
+        label: '导入', icon: 'icon-import', handler: async () => {
+
+           let text =  await $$dialog.textarea('', '导入数据')
+           try{
+             let r = JSON.parse(text || '');
+             dataModel.value = r;
+           }catch(e){
+            ElMessageBox.alert('导入出错了，检查json格式是否正确！')
+           }
+        }
+      },
+      {
+        label: '导出',
+        icon: 'icon-export',
+        handler: () => {
+          $$dialog.textarea(JSON.stringify(dataModel.value), '导出的数据', {editReadonly:true})
+        }
+      },
+      {label: '置顶', icon: 'icon-place-top', handler: () => commander.placeTop(), tip: 'ctrl+up'},
+      {label: '置底', icon: 'icon-place-bottom', handler: () => commander.placeBottom(), tip: 'ctrl+down'},
+      {
         label: '删除',
         icon: 'icon-back',
         handler: commander.delete,
         tip: 'ctrl+d, backspace, delete'
       },
-      {label: '清空', icon: 'icon-reset', handler: () => commander.clear(),},
+      { label: '清空', icon: 'icon-reset', handler: () => commander.clear(), },
     ]
 
     return () => (
@@ -297,19 +333,19 @@ const VisualEditor = defineComponent({
           ))}
         </div>
         <div class="visual-editor-head">
-           {
-             buttons.map((btn, index) => {
-               let content = (
+          {
+            buttons.map((btn, index) => {
+              let content = (
                 <div class="visual-editor-head-button" onClick={() => btn.handler()}>
-                    <i class={`iconfont ${btn.icon}`}></i>
-                    <span>{btn.label}</span>
+                  <i class={`iconfont ${btn.icon}`}></i>
+                  <span>{btn.label}</span>
                 </div>
-               )
-               return !btn.tip ? content:  <el-tooltip effect="dark" content={btn.tip} placement="bottom">
-                 {content}
-               </el-tooltip>; 
-             })
-           }
+              )
+              return !btn.tip ? content : <el-tooltip effect="dark" content={btn.tip} placement="bottom">
+                {content}
+              </el-tooltip>;
+            })
+          }
         </div>
         <div class="visual-editor-operator">
           visual-editor-operator

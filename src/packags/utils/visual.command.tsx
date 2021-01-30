@@ -125,6 +125,70 @@ export const useVisualCommander = ({
         }
     })
 
+    //置顶命令
+    commander.registry({
+        name: 'placeTop',
+        followQueue: true,
+        keyboard: 'ctrl+up',
+        execute: () => {
+            let data = {
+                before: deepcopy(dataModel.value.blocks),
+                after: (() => {
+                    let { focus, unFocus } = focusData.value
+                    // 找到没有获取焦点的block中z-index最大值
+                    let maxZIndex = unFocus.reduce((prev: number, block: VisualEditorBlockData) => {
+                        return Math.max(prev, block.zIndex)
+                    }, -Infinity) + 1;
+                    focus.forEach(item => item.zIndex = maxZIndex)
+                    return deepcopy(dataModel.value.blocks)
+                })()
+            }
+            return {
+                undo: () => {
+                    updateBlocks(deepcopy(data.before))
+                },
+                redo: () => {
+                    updateBlocks(deepcopy(data.after))
+                }
+            }
+        }
+    })
+
+
+    //置底命令
+    commander.registry({
+        name: 'placeBottom',
+        followQueue: true,
+        keyboard: 'ctrl+down',
+        execute: () => {
+            let data = {
+                before: deepcopy(dataModel.value.blocks),
+                after: (() => {
+                    let { focus, unFocus } = focusData.value
+                    // 找到没有获取焦点的block中z-index最大值
+                    let minZIndex = unFocus.reduce((prev: number, block: VisualEditorBlockData) => {
+                        return Math.min(prev, block.zIndex)
+                    }, Infinity) - 1;
+                    if(minZIndex < 0){
+                        let dur = Math.abs(minZIndex)
+                        focus.forEach(item => item.zIndex += dur)
+                        minZIndex = 0
+                    }
+                    focus.forEach(item => item.zIndex = minZIndex)
+                    return deepcopy(dataModel.value.blocks)
+                })()
+            }
+            return {
+                undo: () => {
+                    updateBlocks(deepcopy(data.before))
+                },
+                redo: () => {
+                    updateBlocks(deepcopy(data.after))
+                }
+            }
+        }
+    })
+
     // 1.初始化事件 2.调用每个command中的init方法，订阅事件
     commander.init()
     // 向外部导出的方法
@@ -132,6 +196,8 @@ export const useVisualCommander = ({
         undo: () => commander.state.commands.undo(),
         redo: () => commander.state.commands.redo(),
         delete: () => commander.state.commands.delete(),
-        clear: () => commander.state.commands.clear()
+        clear: () => commander.state.commands.clear(),
+        placeTop: () => commander.state.commands.placeTop(),
+        placeBottom: () => commander.state.commands.placeBottom(),
     }
 }

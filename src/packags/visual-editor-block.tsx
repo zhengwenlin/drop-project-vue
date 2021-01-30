@@ -36,7 +36,8 @@ export const VisualEditorBlock = defineComponent({
 
         const blockStyle = computed(() => ({
             top: `${props.block?.top}px`,
-            left: `${props.block?.left}px`
+            left: `${props.block?.left}px`,
+            zIndex: props.block.zIndex
         }))
         return () => {
             let component = props.config.componentMap[props.block.componentKey]

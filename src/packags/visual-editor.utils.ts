@@ -5,6 +5,7 @@ export interface VisualEditorBlockData {
   left: number,
   adjustPosition: boolean, // 是否需要自动调整位置居中
   focus: boolean, // block选中
+  zIndex: number
 }
 
 export interface VisualEditorModelValue {
@@ -27,18 +28,19 @@ export interface VisualEditorComponent {
 export function createNewBlock({
   component,
   left,
-  top
+  top,
 }: {
   component: VisualEditorComponent,
   top: number,
-  left: number
+  left: number,
 }): VisualEditorBlockData {
   return {
     left,
     top,
     componentKey: component!.key,
     adjustPosition: true, // 第一次拖过去是需要调整位置的
-    focus: true
+    focus: true,
+    zIndex:0
   }
 }
 

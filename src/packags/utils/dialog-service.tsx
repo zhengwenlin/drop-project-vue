@@ -1,25 +1,36 @@
-import { defineComponent, getCurrentInstance, PropType, reactive } from "vue";
-import { ElButton, ElDialog, ElInput } from 'element-plus'
+
+
 /**
- * 怎么写一个dialog服务？
- * 1. 先有一个组件 
- * 2. 写一个方法用于动态挂载组件
- * 什么是组件服务 是一个函数
- *  - 就是动态的挂载组件
+ * 怎么写一个组件服务？
+ * 就是动态挂载一个组件
+ * 1. 有一个组件
+ * 2. 调用函数的方式东塔挂载
  */
+
+import { createApp, defineComponent, getCurrentInstance, PropType, reactive } from "vue";
+import { ElButton, ElInput, ElDialog } from 'element-plus'
+import { defer } from "./defer";
 enum DialogServiceEditType {
   textarea = 'textarea',
-  text = 'text'
+  input = 'input'
 }
+/**组件的接口规范 */
 interface DialogServiceOption {
   title?: string,
-  editType: DialogServiceEditType,       // text和textarea两种类型
-  editReadonly?: boolean,                 // 是否只读
-  editValue?: string | null,              // 修改回显的数据内容
-  onConfirm: (val?: string | null) => void; // 点击确定按钮执行的方法
+  editType: DialogServiceEditType,
+  onConfirm: (val?: null | string) => void,
+  editReadonly?: boolean,
+  editValue?: null | string,
 }
 
-const serviceComponet = defineComponent({
+// key自增
+const keyGenerate = (() => {
+  let count: number = 0;
+  return () => `auto_key_${count++}`
+})();
+
+
+const ServiceComponet = defineComponent({
   props: {
     options: {
       type: Object as PropType<DialogServiceOption>,
@@ -27,61 +38,115 @@ const serviceComponet = defineComponent({
     }
   },
   setup(props) {
-    // 在setup函数中获取当前组件的实例
+
     let ctx = getCurrentInstance()
-    console.log(ctx, 'ctx');
-    // 定义组件的状态
+
     const state = reactive({
-      options: props.options,
-      showFlag: false,       // dialog显示和隐藏
-      editValue: null as undefined | null | string,
+      showFlag: false,
+      option: props.options,
+      editValue: null as null | undefined | string,
+      key: keyGenerate()
     })
 
-    // 定义组件的方法
     const methods = {
+      //service方法是在该组件挂载完成后调用的，会更新数据，并且让弹出框显示
+      service: (option: DialogServiceOption) => {
+        // 修改了选项的数据和绑定的数据
+        state.option = option;
+        state.editValue = option.editValue;
+        state.key = keyGenerate()
+        methods.show()
+      },
+      hide: () => {
+        state.showFlag = false;
+      },
       show: () => {
         state.showFlag = true;
-      },
-      hidden: () => {
-        state.showFlag = false;
       }
     }
 
-    // 定义事件的handers
     const handers = {
-      onConfirm: () => {
-        state.options.onConfirm(state.editValue)
-        methods.hidden()
+      onSubmmit: () => {
+        // onConfirm就是resolve方法 redolve(value)
+        state.option.onConfirm(state.editValue)
+        methods.hide()
       },
       onCancel: () => {
-        methods.hidden()
+        methods.hide()
       }
     }
+    // 将所有的methods方法都合并到组件实例的代理对象上
+    Object.assign(ctx!.proxy, methods)
+
     return () => (
       // @ts-ignore
-      <ElDialog
-        v-model={state.showFlag}
-        title={state.options.title}
-      >
-        {/* jsx中使用插槽方式： */}
+      <ElDialog v-model={state.showFlag} key={state.key}>
+        {/* 使用插槽的方式定义内容 */}
         {{
           default: () => (
             <div>
-              {state.options.editType === DialogServiceEditType.textarea ? (
-                <ElInput type="textarea" {...{rows:10}} v-model={state.editValue} />
-              ): (
-                <ElInput type="text" v-model={state.editValue} />
-              )}
+              {state.option.editType === DialogServiceEditType.textarea ? (
+                <ElInput type="textarea" {...{ rows: 10 }} v-model={state.editValue} />
+              ) : (
+                  <ElInput v-model={state.editValue} />
+                )}
             </div>
           ),
           footer: () => (
             <div>
-              <ElButton {...{ onClick: handers.onConfirm } as any}>取消</ElButton>
-              <ElButton {...{ onClick: handers.onCancel } as any}>确认</ElButton>
+              <ElButton {...{ onClick: handers.onCancel } as any}>取消</ElButton>
+              <ElButton {...{ onClick: handers.onSubmmit } as any} type="primary">确定</ElButton>
             </div>
           )
         }}
       </ElDialog>
     )
+  }
+})
+
+/**
+ * 弹出框服务
+ */
+const DialogService = (() => {
+  let ins: any;
+
+  return (option: DialogServiceOption) => {
+    //动态挂载并创建实例
+    if (!ins) {
+      let el = document.createElement('div');
+      document.body.appendChild(el);
+      let app = createApp(ServiceComponet, { option })
+      ins = app.mount(el)
+    }
+    //调用实例的service方法
+    ins.service(option)
+  }
+})();
+
+
+export const $$dialog = Object.assign(DialogService, {
+  input: (initValue?: string, title?: string, option?: Omit<DialogServiceOption, 'editType' | 'onConfirm'>) => {
+    const dfd = defer<string | null | undefined>();
+    const opt: DialogServiceOption = {
+      ...option,
+      editType: DialogServiceEditType.input,
+      title,
+      editValue: initValue,
+      onConfirm: dfd.resolve
+    }
+    DialogService(opt)
+    return dfd.promise;
+  },
+  textarea: (initValue?: string, title?: string, option?: Omit<DialogServiceOption, 'editType' | 'onConfirm'>) => {
+    const dfd = defer<string | null | undefined>();
+    const opt: DialogServiceOption = {
+      ...option,
+      editType: DialogServiceEditType.textarea,
+      title,
+      editValue: initValue,
+      onConfirm: dfd.resolve
+    }
+    DialogService(opt)
+    return dfd.promise;
   }
 })
