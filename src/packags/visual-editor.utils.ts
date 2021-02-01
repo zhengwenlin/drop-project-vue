@@ -5,7 +5,10 @@ export interface VisualEditorBlockData {
   left: number,
   adjustPosition: boolean, // 是否需要自动调整位置居中
   focus: boolean, // block选中
-  zIndex: number
+  zIndex: number,
+  width: number,
+  height: number,
+  hasResize: boolean,            // 是否调整过宽高
 }
 
 export interface VisualEditorModelValue {
@@ -40,7 +43,10 @@ export function createNewBlock({
     componentKey: component!.key,
     adjustPosition: true, // 第一次拖过去是需要调整位置的
     focus: true,
-    zIndex:0
+    zIndex: 0,
+    width: 0,
+    height: 0,
+    hasResize: false,
   }
 }
 
@@ -67,11 +73,11 @@ export function createVisualEditorConfig() {
 export type VisualEditorConfig = ReturnType<typeof createVisualEditorConfig>
 
 
-// let config = createVisualEditorConfig()
-// config.registry('input', {
-//     label: 'BUTTON',
-//     preview: () => '按钮',
-//     render: () => '渲染按钮'
-// })
-
+/**
+ * 辅助线的类型
+ */
+export interface VisualEditorMarkLines {
+  x: { left: number, showLeft: number }[],
+  y: { top: number, showTop: number }[]
+}
 

@@ -18,11 +18,15 @@ export const VisualEditorBlock = defineComponent({
         // 肯定有值时定义ref
         const el = ref({} as HTMLDivElement)
         onMounted(() => {
-           if(props.block.adjustPosition){
+            let block = props.block
+           if(block.adjustPosition){
                const {offsetWidth, offsetHeight} = el.value;
-               props.block.left = props.block.left - offsetWidth / 2;
-               props.block.top = props.block.top - offsetHeight / 2;
-               props.block.adjustPosition = false
+               block.left = block.left - offsetWidth / 2;
+               block.top = block.top - offsetHeight / 2;
+               // 设置block的宽高
+               block.width = offsetWidth;
+               block.height = offsetHeight
+               block.adjustPosition = false
            }
         })
 

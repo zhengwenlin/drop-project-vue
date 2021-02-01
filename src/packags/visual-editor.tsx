@@ -1,11 +1,11 @@
-import { computed, defineComponent, PropType, ref } from "vue"
+import { computed, defineComponent, PropType, reactive, ref } from "vue"
 import './visual-editor.scss'
-import { VisualEditorModelValue, VisualEditorConfig, VisualEditorComponent, createNewBlock, VisualEditorBlockData } from './visual-editor.utils'
+import { VisualEditorModelValue, VisualEditorConfig, VisualEditorComponent, createNewBlock, VisualEditorBlockData, VisualEditorMarkLines } from './visual-editor.utils'
 import { useModel } from './utils/useModel'
 import { VisualEditorBlock } from './visual-editor-block'
 import { useVisualCommander } from "./utils/visual.command"
 import { createEvent } from "./plugins/event"
-import { ElMessageBox} from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 
 import { $$dialog } from "./utils/dialog-service"
 
@@ -28,6 +28,7 @@ const VisualEditor = defineComponent({
   setup(props, ctx) {
 
     const dataModel = useModel(() => props.modelValue, val => ctx.emit('update:modelValue', val))
+
 
     const containerStyle = computed(() => {
       return {
@@ -146,6 +147,11 @@ const VisualEditor = defineComponent({
       }
     })
 
+    // 选中的block的数据
+    let state = reactive({
+      selectBlock: null as null | VisualEditorBlockData,        //当前选中的组件
+    })
+
     // block的激活的handlers
     // 1. 点击block，变成激活状态
     // 2. 按住shift键，点击其他block，多选
@@ -157,7 +163,15 @@ const VisualEditor = defineComponent({
         container: {
           onMousedown: (e: MouseEvent) => {
             e.preventDefault();
-            methods.clearFocus()
+            // 只处理container的事件
+            if (e.currentTarget !== e.target) return;
+            //如果没有按住shift键，才去清空所有的选中
+            if (!e.shiftKey) {
+              methods.clearFocus()
+
+              state.selectBlock = null;
+            }
+
           }
         },
         // 监听block的mousedown，让block激活
@@ -185,6 +199,8 @@ const VisualEditor = defineComponent({
               }
             }
 
+            // 无论是否按住shift，都要设置选中
+            state.selectBlock = block;
             // block拖拽事件
             blockDraggier.mousedown(e)
           }
@@ -200,19 +216,61 @@ const VisualEditor = defineComponent({
       let dragState = {
         startX: 0,
         startY: 0,
+        currentLeft: 0, // 选中元素的left和top
+        currentTop: 0,
         // 要拖拽的元素可能有多个，（选中的blocks都要被拖拽）
         startPos: [] as { left: number, top: number }[],
         dragging: false,
+
+        // 辅助线
+        markLines: {} as VisualEditorMarkLines
       }
       // clientX,clientY 点击位置距离当前body可视区域的x、y坐标
       // 鼠标按下时触发的事件
       const mousedown = (e: MouseEvent) => {
+
+        // 辅助线x和y的值
+        const mark = reactive({
+          x: null as null | number,
+          y: null as null | number
+        })
+
         dragState = {
           startX: e.clientX,
           startY: e.clientY,
+          currentLeft: state.selectBlock!.left,
+          currentTop: state.selectBlock!.top,
           // 选中的blocks的起始left和top值
           startPos: focusData.value.focus.map(({ left, top }) => ({ left, top })),
           dragging: false,
+          // 鼠标按下的时候，立即计算所有的值
+          markLines: (() => {
+            // 辅助线是所有选中的鼠标点击的那个组件相对于所有没有选中的组件之间的
+            let { focus, unFocus } = focusData.value;
+            let { top, left, width, height } = state.selectBlock!;
+
+            let lines: VisualEditorMarkLines = { x: [], y: [] }
+            unFocus.forEach(block => {
+              let { top: t, left: l, width: w, height: h } = block;
+              // 每个没有选中的组件都有10种对齐方式，也就是10条辅助线（x轴5种，y轴5种)
+              // 这里遍历计算出所有的组件所有的辅助线的位置
+              // y轴（选中的组件->当前block） 顶->顶 中间->中间 底部->顶部 顶部->底部 底部->底部
+              // top是选中的selectBlock的top值， showTop是辅助线的top值
+              lines.y.push({ top: t, showTop: t }) // 顶部对齐，top值相同
+              lines.y.push({ top: t + h, showTop: t + h }) // 顶部对底部
+              lines.y.push({ top: t + h / 2 - height / 2, showTop: t + h / 2 })  //中间对中间
+              lines.y.push({ top: t - height, showTop: t })   // 底部对齐顶部
+              lines.y.push({ top: t + h - height, showTop: t + h })   // 底部对底部
+
+
+              lines.x.push({ left: l, showLeft: l }) // 左边对齐
+              lines.x.push({ left: l + w, showLeft: l + w }) 
+              lines.x.push({ left: l + w / 2 - width / 2, showLeft: l + w / 2 }) 
+              lines.x.push({ left: l - width, showLeft: l })   
+              lines.x.push({ left: l + w - width, showLeft: l + w })   
+            })
+            return lines;
+          })()
         }
         // 添加mousemove事件mouseup事件
         // 注意： 事件要绑定给document，因为元素是在页面中随便移动，相对于document
@@ -222,20 +280,36 @@ const VisualEditor = defineComponent({
       // 鼠标移动时触发的事件
       const mousemove = (e: MouseEvent) => {
         // 鼠标移动的时候，计算位置
-        let durX = e.clientX - dragState.startX;
-        let durY = e.clientY - dragState.startY;
         
+        let {startX, startY} = dragState;
+        let {clientX: moveX, clientY: moveY} = e;
+
         // 如果按住了shift键，会只能上下或者左右移动，有一个移动的矫正
-        if(e.shiftKey){
+        if (e.shiftKey) {
           // 如果x轴移动的绝对距离比y轴大，说明大体上是沿着x轴移动的，这时，y轴就不让移动
-          if(Math.abs(durX) > Math.abs(durY)){
-             durY = 0
-          }else{
-            durX = 0;
+          if (Math.abs(moveX - startX) > Math.abs(moveY - startY)) {
+            moveY = startY
+          } else {
+            moveX = startX;
           }
         }
 
+        // 当前的left值和top值
+        let currentLeft = dragState.currentLeft + moveX - startX;
+        let currentTop = dragState.currentTop + moveY - startY;
+
+        let currentMark = {
+          x: null as null | number,
+          y: null as null | number,
+        }
+        
+        
+
+
         let focus = focusData.value.focus;
+
+        let durY = moveY - startY;
+        let durX = moveX - startX;
         focus.forEach((block, index) => {
           block.top = dragState.startPos[index].top + durY;
           block.left = dragState.startPos[index].left + durX;
@@ -288,24 +362,24 @@ const VisualEditor = defineComponent({
       {
         label: '导入', icon: 'icon-import', handler: async () => {
 
-           let text =  await $$dialog.textarea('', '导入数据')
-           try{
-             let r = JSON.parse(text || '');
-             dataModel.value = r;
-           }catch(e){
+          let text = await $$dialog.textarea('', '导入数据')
+          try {
+            let r = JSON.parse(text || '');
+            dataModel.value = r;
+          } catch (e) {
             ElMessageBox.alert('导入出错了，检查json格式是否正确！')
-           }
+          }
         }
       },
       {
         label: '导出',
         icon: 'icon-export',
         handler: () => {
-          $$dialog.textarea(JSON.stringify(dataModel.value), '导出的数据', {editReadonly:true})
+          $$dialog.textarea(JSON.stringify(dataModel.value), '导出的数据', { editReadonly: true })
         }
       },
-      {label: '置顶', icon: 'icon-place-top', handler: () => commander.placeTop(), tip: 'ctrl+up'},
-      {label: '置底', icon: 'icon-place-bottom', handler: () => commander.placeBottom(), tip: 'ctrl+down'},
+      { label: '置顶', icon: 'icon-place-top', handler: () => commander.placeTop(), tip: 'ctrl+up' },
+      { label: '置底', icon: 'icon-place-bottom', handler: () => commander.placeBottom(), tip: 'ctrl+down' },
       {
         label: '删除',
         icon: 'icon-back',

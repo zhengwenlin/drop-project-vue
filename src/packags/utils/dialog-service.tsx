@@ -7,7 +7,7 @@
  * 2. 调用函数的方式东塔挂载
  */
 
-import { createApp, defineComponent, getCurrentInstance, PropType, reactive } from "vue";
+import { createApp, defineComponent, getCurrentInstance, PropType, reactive, ComponentInternalInstance } from "vue";
 import { ElButton, ElInput, ElDialog } from 'element-plus'
 import { defer } from "./defer";
 enum DialogServiceEditType {
@@ -39,7 +39,7 @@ const ServiceComponet = defineComponent({
   },
   setup(props) {
 
-    let ctx = getCurrentInstance()
+    let ctx = getCurrentInstance() as ComponentInternalInstance
 
     const state = reactive({
       showFlag: false,

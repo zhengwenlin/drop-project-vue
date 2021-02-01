@@ -18,9 +18,9 @@ export default defineComponent({
           height:500
         },
         blocks: [
-          {top: 100, left:100,componentKey:'button'},
-          {top: 200, left: 200,componentKey:'input'},
-          {top: 50, left: 200,componentKey:'text'},
+          {top: 100, left:100,componentKey:'button',width:0,height:0},
+          {top: 200, left: 200,componentKey:'input',width:0,height:0},
+          {top: 50, left: 200,componentKey:'text',width:0,height:0},
         ]
       }
     }
