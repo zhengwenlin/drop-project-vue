@@ -4,6 +4,9 @@ import { KeyboardCode } from "./keyboard-code";
 interface CommandExecute {
 	undo?: () => void,
 	redo: () => void,
+
+
+	
 }
 
 interface Command {
