@@ -2,7 +2,7 @@ import { useCommander } from "../plugins/command.plugin"
 import { VisualEditorBlockData, VisualEditorModelValue } from "../visual-editor.utils";
 import deepcopy from 'deepcopy'
 
-export const useVisualCommander = ({
+export const useVisualCommand = ({
     focusData,  // 选中和没有选中的数据
     dataModel,  // 所有的数据  blcoks container
     updateBlocks, //更新blocks的方法

@@ -24,7 +24,7 @@ export default defineComponent({
         ]
       }
     }
-  }
+  },
 });
 </script>
 
@@ -33,5 +33,7 @@ html,body{
   margin: 0;
   padding: 0;
 }
+
+
 </style>
 
